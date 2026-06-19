@@ -1,0 +1,298 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model activity_logs {
+  id          String      @id
+  adminUserId String
+  adminName   String
+  adminEmail  String
+  action      String
+  entityType  String
+  entityId    String
+  description String
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime    @default(now())
+  admin_users admin_users @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([action])
+  @@index([adminUserId])
+  @@index([createdAt])
+  @@index([entityType])
+}
+
+model admin_users {
+  id            String          @id
+  email         String          @unique
+  passwordHash  String
+  name          String
+  role          AdminRole       @default(SUPPORT)
+  isActive      Boolean         @default(true)
+  lastLoginAt   DateTime?
+  lastLoginIp   String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  activity_logs activity_logs[]
+
+  @@index([email])
+}
+
+model contacts {
+  name       String
+  email      String
+  phone      String?
+  company    String?
+  subject    String?
+  message    String
+  type       ContactType   @default(GENERAL)
+  priority   Priority      @default(MEDIUM)
+  status     ContactStatus @default(NEW)
+  customerId Int?
+  assignedTo String?
+  adminNotes String?
+  resolvedAt DateTime?
+  source     String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  id         Int           @id @default(autoincrement())
+  customers  customers?    @relation(fields: [customerId], references: [id])
+
+  @@index([createdAt])
+  @@index([email])
+  @@index([priority])
+  @@index([status])
+}
+
+model customers {
+  id              Int               @id @default(autoincrement())
+  email           String            @unique
+  name            String
+  phone           String?
+  company         String?
+  country         String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  lastOrderAt     DateTime?
+  contacts        contacts[]
+  email_schedules email_schedules[]
+  orders          orders[]
+
+  @@index([createdAt])
+  @@index([email])
+}
+
+model demo_requests {
+  id            Int        @id @default(autoincrement())
+  name          String
+  email         String
+  phone         String?
+  company       String?
+  jobTitle      String?
+  title         String?
+  type          String?
+  interestedIn  String
+  preferredDate DateTime?
+  preferredTime String?
+  status        DemoStatus @default(PENDING)
+  scheduledAt   DateTime?
+  completedAt   DateTime?
+  notes         String?
+  assignedTo    String?
+  source        String?
+  ipAddress     String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([createdAt])
+  @@index([email])
+  @@index([status])
+}
+
+model email_schedules {
+  id         String      @id
+  customerId Int
+  campaignId String
+  emailId    String
+  sendAt     DateTime
+  sentAt     DateTime?
+  status     EmailStatus @default(PENDING)
+  error      String?
+  retryCount Int         @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  customers  customers   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([customerId])
+  @@index([status, sendAt])
+}
+
+model error_logs {
+  id         String    @id
+  message    String
+  severity   String
+  errorType  String?
+  url        String?
+  userAgent  String?
+  userId     String?
+  sessionId  String?
+  stackTrace String?
+  metadata   Json?
+  resolved   Boolean   @default(false)
+  resolvedAt DateTime?
+  resolvedBy String?
+  createdAt  DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([errorType])
+  @@index([resolved])
+  @@index([severity])
+}
+
+model newsletter_subscribers {
+  email          String           @unique
+  status         SubscriberStatus @default(ACTIVE)
+  name           String?
+  source         String?
+  interests      String[]
+  subscribedAt   DateTime         @default(now())
+  unsubscribedAt DateTime?
+  lastEmailSent  DateTime?
+  emailsSent     Int              @default(0)
+  emailsOpened   Int              @default(0)
+  emailsClicked  Int              @default(0)
+  metadata       Json?
+  id             Int              @id @default(autoincrement())
+  updatedAt      DateTime         @default(now()) @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([subscribedAt])
+}
+
+model orders {
+  id             Int         @id @default(autoincrement())
+  orderNumber    String      @unique
+  customerId     Int
+  plan           String
+  amount         Float
+  currency       String      @default("USD")
+  status         OrderStatus @default(PENDING)
+  paymentMethod  String
+  paymentId      String?     @unique
+  paymentStatus  String?
+  billingName    String
+  billingEmail   String
+  billingPhone   String?
+  billingAddress String?
+  billingCity    String?
+  billingCountry String?
+  billingZip     String?
+  licenseKey     String?     @unique
+  downloadUrl    String?
+  licenseExpiry  DateTime?
+  metadata       Json?
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  paidAt         DateTime?
+  deliveredAt    DateTime?
+  customers      customers   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([customerId])
+  @@index([orderNumber])
+  @@index([paymentId])
+  @@index([status])
+}
+
+model web_vitals_metrics {
+  id             String   @id
+  metricId       String
+  name           String
+  value          Float
+  rating         String
+  delta          Float
+  navigationType String
+  url            String
+  userAgent      String
+  connectionType String
+  timestamp      DateTime
+  createdAt      DateTime @default(now())
+
+  @@index([name])
+  @@index([rating])
+  @@index([timestamp])
+  @@index([url])
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  SUPPORT
+  SALES
+  VIEWER
+}
+
+enum ContactStatus {
+  NEW
+  IN_PROGRESS
+  WAITING_RESPONSE
+  RESOLVED
+  CLOSED
+}
+
+enum ContactType {
+  GENERAL
+  SALES
+  SUPPORT
+  TECHNICAL
+  BILLING
+  DEMO_REQUEST
+}
+
+enum DemoStatus {
+  PENDING
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum SubscriberStatus {
+  ACTIVE
+  UNSUBSCRIBED
+  BOUNCED
+  COMPLAINED
+}
